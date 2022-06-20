@@ -5,9 +5,10 @@
 #ifndef RAYTRACING_MATERIAL_H
 #define RAYTRACING_MATERIAL_H
 
+#include<cmath>
 #include "Vector.hpp"
 
-enum MaterialType { DIFFUSE};
+enum MaterialType { DIFFUSE, MIRROR, COSINE};
 
 class Material{
 private:
@@ -47,7 +48,7 @@ private:
     // \param N is the normal at the intersection point
     //
     // \param ior is the material refractive index
-    //
+    //ior is n2 / n1
     // \param[out] kr is the amount of light reflected
     void fresnel(const Vector3f &I, const Vector3f &N, const float &ior, float &kr) const
     {
@@ -85,6 +86,33 @@ private:
         return a.x * B + a.y * C + a.z * N;
     }
 
+    float D(const Vector3f& wi, const Vector3f& w0, const Vector3f& n)
+    {
+        Vector3f h = H(wi, w0);
+        float cos = dotProduct(n, h);
+        float R_2 = Roughness * Roughness;
+        float denom = (cos * cos) * (R_2 - 1) + 1;
+        return R_2 / (M_PI * denom * denom) ;
+    }
+
+    float G(const Vector3f& wi, const Vector3f& w0, const Vector3f& n)
+    {
+        float a = (Roughness + 1.f) * (Roughness + 1.f) / 4.f;
+        float k = a / 2.f;
+        float ndi = dotProduct(wi, n);
+        float nd0 = dotProduct(w0, n);
+        float G11 = ndi / (ndi * (1 - k) + k);
+        float G12 = nd0 / (nd0 * (1 - k) + k);
+        return G11 * G12;
+    }
+
+
+    Vector3f toCartesian(float theta, float phi)
+    {
+        Vector3f c(sin(theta) * sin(phi), cos(theta), sin(theta) * cos(phi));
+        return c;
+    }
+
 public:
     MaterialType m_type;
     //Vector3f m_color;
@@ -93,7 +121,7 @@ public:
     Vector3f Kd, Ks;
     float specularExponent;
     //Texture tex;
-
+    float Roughness;
     inline Material(MaterialType t=DIFFUSE, Vector3f e=Vector3f(0,0,0));
     inline MaterialType getType();
     //inline Vector3f getColor();
@@ -107,8 +135,9 @@ public:
     inline float pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N);
     // given a ray, calculate the contribution of this ray
     inline Vector3f eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &N);
-
 };
+
+
 
 Material::Material(MaterialType t, Vector3f e){
     m_type = t;
@@ -139,7 +168,19 @@ Vector3f Material::sample(const Vector3f &wi, const Vector3f &N){
             float r = std::sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
             Vector3f localRay(r*std::cos(phi), r*std::sin(phi), z);
             return toWorld(localRay, N);
-            
+            break;
+        }
+        case MIRROR:
+        case COSINE:
+        {
+            float a2 = Roughness;
+            float x_1 = get_random_float(), x_2 = get_random_float();
+            float z = std::sqrt((1.0f - x_1) / ((Roughness * Roughness - 1) * x_1 + 1));
+            float r = std::sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+            Vector3f localRay(r * std::cos(phi), r * std::sin(phi), z);
+            Vector3f w = toWorld(localRay, N);
+            Vector3f w0 = 2.0f * dotProduct(-wi, w) * w - -wi;
+            return w0;
             break;
         }
     }
@@ -156,6 +197,22 @@ float Material::pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
                 return 0.0f;
             break;
         }
+        case MIRROR:
+        case COSINE:
+        {
+            Vector3f h = normalize((-wi + wo) / 2);
+            float cos = std::max(dotProduct(h, wo), 0.0f);
+            if (cos >= 0.0f)
+            {
+                Vector3f h = H(-wi, wo);
+                float d = D(-wi, wo, N);
+                return (d * cos / (4 * dotProduct(wo, h)));
+            }   
+            else
+                return 0.0f;
+            break;
+        }
+        
     }
 }
 
@@ -168,6 +225,32 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
             if (cosalpha > 0.0f) {
                 Vector3f diffuse = Kd / M_PI;
                 return diffuse;
+            }
+            else
+                return Vector3f(0.0f);
+            break;
+        }
+        case MIRROR:
+        case COSINE:
+        {
+            Vector3f h = normalize((-wi + wo) / 2);
+            float cosalpha = dotProduct(N, wo);
+            if (cosalpha > 0.0f) {
+                float kr;
+                Vector3f v = -wi;
+                fresnel(wi, N, ior, kr);
+                float kd = 1 - kr;
+                float g = G(v, wo, N);
+                float d = D(v, wo, N);
+
+                float cosl = dotProduct(N, wo);
+                float cosv = dotProduct(N, v);
+
+                float denominator = 4 * cosl * cosv;
+                float normation = kr * g * d;
+                float specularf = normation / denominator;
+                Vector3f specular = Ks * specularf;
+                return specular;
             }
             else
                 return Vector3f(0.0f);

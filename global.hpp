@@ -51,3 +51,10 @@ inline void UpdateProgress(float progress)
     std::cout << "] " << int(progress * 100.0) << " %\r";
     std::cout.flush();
 };
+
+inline Vector3f H(const Vector3f& v, const Vector3f& l)
+{
+    Vector3f a = v + l;
+    return a.normalized();
+}
+

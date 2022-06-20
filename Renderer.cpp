@@ -45,13 +45,30 @@ void Renderer::Render(const Scene& scene)
             int m = j * scene.width + min_x;
             for (uint32_t i = min_x; i < max_x; ++i) {
                 // generate primary ray direction
+                //float x1 = (2 * (i + 0.25) / (float)scene.width - 1) *
+                //    imageAspectRatio * scale;
+                //float y1 = (1 - 2 * (j + 0.25) / (float)scene.height) * scale;
+                //float x2 = (2 * (i + 0.75) / (float)scene.width - 1) *
+                //    imageAspectRatio * scale;
+                //float y2 = (1 - 2 * (j + 0.75) / (float)scene.height) * scale;
+
                 float x = (2 * (i + 0.5) / (float)scene.width - 1) *
                     imageAspectRatio * scale;
                 float y = (1 - 2 * (j + 0.5) / (float)scene.height) * scale;
-
+                //Vector3f dir1 = normalize(Vector3f(-x1, y1, 1));
+                //Vector3f dir2 = normalize(Vector3f(-x2, y1, 1));
+                //Vector3f dir3 = normalize(Vector3f(-x1, y2, 1));
+                //Vector3f dir4 = normalize(Vector3f(-x2, y2, 1));
                 Vector3f dir = normalize(Vector3f(-x, y, 1));
+                
                 for (int k = 0; k < spp; k++) {
-                    framebuffer[m] += scene.castRay(Ray(eye_pos, dir), 0) / spp;
+                    //Vector3f c1 = scene.castRay(Ray(eye_pos, dir1), 0) / spp * 0.25;
+                    //Vector3f c2 = scene.castRay(Ray(eye_pos, dir2), 0) / spp * 0.25;
+                    //Vector3f c3 = scene.castRay(Ray(eye_pos, dir3), 0) / spp * 0.25;
+                    //Vector3f c4 = scene.castRay(Ray(eye_pos, dir4), 0) / spp * 0.25;
+                    //Vector3f c = c1 + c2 + c3 + c4;
+                    Vector3f c = scene.castRay(Ray(eye_pos, dir), 0) / spp;
+                    framebuffer[m] +=  c;
                 }
                 m++;
             }
@@ -100,9 +117,9 @@ void Renderer::Render(const Scene& scene)
     (void)fprintf(fp, "P6\n%d %d\n255\n", scene.width, scene.height);
     for (auto i = 0; i < scene.height * scene.width; ++i) {
         static unsigned char color[3];
-        color[0] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].x), 0.6f));
-        color[1] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].y), 0.6f));
-        color[2] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].z), 0.6f));
+        color[0] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].x), pow(0.6f, 2.2f)));
+        color[1] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].y), pow(0.6f, 2.2f)));
+        color[2] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].z), pow(0.6f, 2.2f)));
         fwrite(color, 1, 3, fp);
     }
     fclose(fp);    

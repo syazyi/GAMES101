@@ -25,20 +25,42 @@ int main(int argc, char** argv)
     Material* light = new Material(DIFFUSE, (8.0f * Vector3f(0.747f+0.058f, 0.747f+0.258f, 0.747f) + 15.6f * Vector3f(0.740f+0.287f,0.740f+0.160f,0.740f) + 18.4f *Vector3f(0.737f+0.642f,0.737f+0.159f,0.737f)));
     light->Kd = Vector3f(0.65f);
 
-    MeshTriangle floor("../models/cornellbox/floor.obj", white);
-    MeshTriangle shortbox("../models/cornellbox/shortbox.obj", white);
-    MeshTriangle tallbox("../models/cornellbox/tallbox.obj", white);
-    MeshTriangle left("../models/cornellbox/left.obj", red);
-    MeshTriangle right("../models/cornellbox/right.obj", green);
-    MeshTriangle light_("../models/cornellbox/light.obj", light);
+    Material* specular = new Material(MIRROR, Vector3f(0.0f));
+    specular->Kd = Vector3f(0.725f, 0.71f, 0.68f);
+    specular->Ks = -specular->Kd + 1;
+    specular->Roughness = 0.001f;
+    specular->ior = 20.f;
+
+    Material* diffuseMirco = new Material(COSINE, Vector3f(0.0f));
+    diffuseMirco->Kd = Vector3f(0.725f, 0.71f, 0.68f);
+    diffuseMirco->Ks = -diffuseMirco->Kd + 1;
+    diffuseMirco->Roughness = 0.96f;
+    diffuseMirco->ior = 1.3f;
+
+    //Sphere sphere1(Vector3f(150, 100, 300), 100, diffuseMirco);
+    Sphere sphere2_l(Vector3f(50, 500, 300), 50, light);
+    Sphere sphere3_l(Vector3f(50, 300, 300), 25, light);
+    Sphere sphere4_l(Vector3f(50, 200, 300), 10, light);
+    Sphere sphere5_l(Vector3f(50, 100, 300), 5, light);
+    MeshTriangle floor("../models/cornellbox/floor.obj", diffuseMirco);
+    //MeshTriangle shortbox("../models/cornellbox/shortbox.obj", specular);
+    //MeshTriangle tallbox("../models/cornellbox/tallbox.obj", diffuseMirco);
+    MeshTriangle left("../models/cornellbox/left.obj", diffuseMirco);
+    MeshTriangle right("../models/cornellbox/right.obj", diffuseMirco);
+    //MeshTriangle light_("../models/cornellbox/light.obj", light);
 
     scene.Add(&floor);
-    scene.Add(&shortbox);
-    scene.Add(&tallbox);
+    //scene.Add(&shortbox);
+    //scene.Add(&tallbox);
     scene.Add(&left);
     scene.Add(&right);
-    scene.Add(&light_);
+    //scene.Add(&light_);
 
+    //scene.Add(&sphere1);
+    scene.Add(&sphere2_l);
+    scene.Add(&sphere3_l);
+    scene.Add(&sphere4_l);
+    scene.Add(&sphere5_l);
     scene.buildBVH();
 
     Renderer r;

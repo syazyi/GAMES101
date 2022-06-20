@@ -83,11 +83,22 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
     Ray p2l(point.coords, wsnor);
     Intersection p2lInter = intersect(p2l);
 
+    //探究多重重要性采样
+
+    Vector3f wipdf = point.m->sample(ray.direction, point.normal);
+    Ray reflectRay(point.coords, wipdf.normalized());
+    float wmir = point.m->pdf(ray.direction, reflectRay.direction, point.normal);
+
+    
+
+    float misw1 = std::max(pdf_light * pdf_light / (wmir * wmir + pdf_light * pdf_light), 0.1f);
+    float misw2 = 1 - misw1;
+
     Vector3f L_dir;
 
     if (p2lInter.distance - ws.norm() > -0.005f)
     {
-        L_dir = emit * point.m->eval(ray.direction, wsnor, point.normal) * dotProduct(wsnor, point.normal) * dotProduct(-wsnor, NN) / std::powf(ws.norm(), 2.f) / pdf_light;
+        L_dir = misw1 * emit * point.m->eval(ray.direction, wsnor, point.normal) * dotProduct(wsnor, point.normal) * dotProduct(-wsnor, NN) / std::powf(ws.norm(), 2.f) / pdf_light;
     }
 
     Vector3f L_indir;
@@ -99,13 +110,13 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
     }
     else
     {
-        Vector3f wi = point.m->sample(ray.direction, point.normal);
-        Ray reflectRay(point.coords, wi.normalized());
+        //Vector3f wi = point.m->sample(ray.direction, point.normal);
+        //Ray reflectRay(point.coords, wi.normalized());
         Intersection inter = intersect(reflectRay);
-        if (inter.happened && !inter.m->hasEmission())
+        if (inter.happened)
         {
-            L_indir = castRay(reflectRay, depth + 1) * point.m->eval(ray.direction, reflectRay.direction, point.normal) * dotProduct(reflectRay.direction, point.normal) / point.m->pdf(ray.direction, reflectRay.direction, point.normal) / RussianRoulette;
+            L_indir = misw2 * castRay(reflectRay, depth + 1) * point.m->eval(ray.direction, reflectRay.direction, point.normal) * dotProduct(reflectRay.direction, point.normal) / point.m->pdf(ray.direction, reflectRay.direction, point.normal) / RussianRoulette;
         }
     }
-    return L_dir + L_indir;
+    return Vector3f::Min(Vector3f::Max(L_dir + L_indir, Vector3f(0)), Vector3f(1));
 }
